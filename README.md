@@ -2,6 +2,8 @@
 
 **Upload a photo. Uncover every hidden detail. Strip what you don't want shared.**
 
+🔗 **Live Demo:** [exif.tahagenc.com](https://exif.tahagenc.com)
+
 EXIF Tetkik is a browser-based EXIF metadata inspector built with vanilla JavaScript. All processing happens client-side — no uploads, no tracking, no accounts.
 
 ## Features
