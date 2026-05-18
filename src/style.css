@@ -209,16 +209,40 @@ kbd {
   flex-wrap: wrap;
 }
 .sample-thumb {
-  width: 80px;
-  height: 60px;
+  width: 120px;
+  height: 90px;
   border-radius: var(--radius);
   border: 1px solid var(--border);
-  object-fit: cover;
+  background-size: cover;
+  background-position: center;
   cursor: pointer;
   opacity: 0.7;
-  transition: opacity var(--transition), border-color var(--transition);
+  transition: opacity var(--transition), border-color var(--transition), transform var(--transition);
+  position: relative;
 }
-.sample-thumb:hover { opacity: 1; border-color: var(--accent); }
+.sample-thumb:hover {
+  opacity: 1;
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+.sample-thumb::after {
+  content: attr(aria-label);
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(14,13,11,0.9), transparent);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  padding: 6px 8px 4px;
+  border-radius: 0 0 var(--radius) var(--radius);
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+.sample-thumb:hover::after {
+  opacity: 1;
+}
 
 /* ── File Tabs ───────────────────────────────────────────── */
 .file-tabs {
@@ -326,6 +350,7 @@ kbd {
   text-align: center;
   padding: 16px;
 }
+.heic-notice[hidden] { display: none; }
 .preview-meta {
   padding: 10px 14px;
   font-family: var(--font-mono);
@@ -568,6 +593,50 @@ kbd {
 }
 @keyframes blink { 50% { opacity: 0; } }
 
+/* ── Shortcuts Modal ─────────────────────────────────────── */
+.shortcuts-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.shortcuts-modal[hidden] { display: none; }
+.shortcuts-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(14,13,11,0.9);
+}
+.shortcuts-content {
+  position: relative;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  max-width: 480px;
+  width: 90%;
+}
+.shortcuts-content h2 {
+  font-family: var(--font-serif);
+  font-size: 1.4rem;
+  color: var(--text-primary);
+  margin-bottom: 20px;
+}
+.shortcuts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.shortcut-row kbd { min-width: 80px; }
+.shortcut-row span { color: var(--text-secondary); font-size: 0.9rem; }
+
 /* ── Toast ───────────────────────────────────────────────── */
 #toast-container {
   position: fixed;
@@ -728,7 +797,26 @@ kbd {
   .preview-wrap { aspect-ratio: 16/9; }
   .map-container { height: 200px; }
 
-  .privacy-banner { flex-direction: column; }
+  .privacy-banner { flex-direction: column; align-items: stretch; }
+  .privacy-actions { width: 100%; }
+  .privacy-actions .btn-danger { width: 100%; }
 
-  .export-row { overflow-x: auto; flex-wrap: nowrap; }
+  .report-section { padding: 16px 0; }
+
+  .export-row {
+    position: sticky;
+    top: 56px;
+    background: var(--bg-primary);
+    z-index: 10;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .data-row { flex-direction: column; gap: 4px; }
+  .data-key { min-width: auto; font-size: 0.72rem; }
+  .coords-display { font-size: 0.72rem; }
+
+  .dropzone-section { padding-bottom: 80px; }
 }

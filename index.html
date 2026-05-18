@@ -4,15 +4,31 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EXIF Tetkik — Metadata Inspector</title>
-    <meta name="description" content="Upload a photo. Uncover every hidden detail. Strip what you don't want shared." />
+    <meta name="description" content="Upload a photo. Uncover every hidden detail. Strip what you don't want shared. Browser-based EXIF metadata inspector — no uploads, no tracking." />
+
+    <!-- Open Graph -->
     <meta property="og:title" content="EXIF Tetkik — Metadata Inspector" />
-    <meta property="og:description" content="Upload a photo. Uncover every hidden detail." />
+    <meta property="og:description" content="Upload a photo. Uncover every hidden detail. Strip what you don't want shared." />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://exif.tahagenc.com" />
+    <!-- TODO: generate og-image.png (1200x630, app UI screenshot) before deploy -->
+    <meta property="og:image" content="https://exif.tahagenc.com/og-image.png" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="EXIF Tetkik — Metadata Inspector" />
+    <meta name="twitter:description" content="Upload a photo. Uncover every hidden detail." />
+    <meta name="twitter:image" content="https://exif.tahagenc.com/og-image.png" />
+
+    <!-- Theme -->
+    <meta name="theme-color" content="#0e0d0b" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Geist+Mono:wght@300..700&family=Geist:wght@300..700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
@@ -56,7 +72,7 @@
 
       <div class="investigation" id="investigation" hidden>
         <aside class="investigation-left" role="complementary" aria-label="Visual preview">
-          <div class="preview-panel" role="region" aria-label="Image preview">
+          <div class="preview-panel" role="region" aria-label="Image preview" hidden>
             <div class="preview-wrap">
               <img id="preview-img" src="" alt="Uploaded image preview" />
               <div id="preview-heic-notice" class="heic-notice" hidden role="alert">HEIC/HEIF — preview unavailable in browser. Metadata is readable.</div>
@@ -163,6 +179,40 @@
         </p>
       </div>
     </footer>
+
+    <div class="shortcuts-modal" id="shortcuts-modal" hidden role="dialog" aria-labelledby="shortcuts-title">
+      <div class="shortcuts-overlay" id="shortcuts-overlay"></div>
+      <div class="shortcuts-content">
+        <h2 id="shortcuts-title">Keyboard Shortcuts</h2>
+        <div class="shortcuts-list">
+          <div class="shortcut-row">
+            <kbd>?</kbd>
+            <span>Show this dialog</span>
+          </div>
+          <div class="shortcut-row">
+            <kbd>Esc</kbd>
+            <span>Reset to dropzone</span>
+          </div>
+          <div class="shortcut-row">
+            <kbd>Ctrl+V</kbd>
+            <span>Paste image from clipboard</span>
+          </div>
+          <div class="shortcut-row">
+            <kbd>Ctrl+J</kbd>
+            <span>Copy JSON to clipboard</span>
+          </div>
+          <div class="shortcut-row">
+            <kbd>Ctrl+K</kbd>
+            <span>Open file picker</span>
+          </div>
+          <div class="shortcut-row">
+            <kbd>Ctrl+,</kbd>
+            <span>Clear history</span>
+          </div>
+        </div>
+        <button class="btn btn-ghost" id="shortcuts-close">Close</button>
+      </div>
+    </div>
 
     <script type="module" src="/src/main.js"></script>
   </body>

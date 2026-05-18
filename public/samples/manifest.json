@@ -1,0 +1,19 @@
+{
+  "samples": [
+    {
+      "filename": "pagoda-night.jpg",
+      "label": "Rich EXIF + GPS",
+      "description": "Night photograph with full metadata and GPS coordinates"
+    },
+    {
+      "filename": "portrait-studio.jpg",
+      "label": "No GPS, serial numbers",
+      "description": "Studio portrait with device fingerprints but no location data"
+    },
+    {
+      "filename": "mountain-sunrise.jpg",
+      "label": "iPhone + GPS",
+      "description": "Mobile photo with GPS and minimal post-processing"
+    }
+  ]
+}

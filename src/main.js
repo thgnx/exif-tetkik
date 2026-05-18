@@ -3,11 +3,13 @@
  * Modülleri koordine eder, global state tutar.
  */
 
-import { initDropzone }                        from './modules/dropzone.js'
-import { parseFile, getGPS }                   from './modules/parser.js'
-import { initMap, destroyMap }                 from './modules/map.js'
+import { initDropzone }                          from './modules/dropzone.js'
+import { parseFile, getGPS }                     from './modules/parser.js'
+import { initMap, destroyMap }                   from './modules/map.js'
 import { computePrivacyFlags, getSensitiveKeys } from './modules/privacy.js'
-import { stripExif }                           from './modules/stripper.js'
+import { stripExif }                             from './modules/stripper.js'
+import { generateShareCard }                     from './modules/shareCard.js'
+import { saveToHistory, loadHistory, clearHistory } from './modules/storage.js'
 import {
   qs, createEl, toast,
   showLoading, hideLoading,
@@ -25,8 +27,62 @@ const state = {
 // ── Başlangıç ────────────────────────────────────────────────
 initDropzone(onFiles, (msg) => toast(msg, 'error'))
 initKeyboardShortcuts()
+initShortcutsModal()
 initPrivacyTooltips()
 setCaseBadge()
+loadSamples()
+renderHistoryStrip()
+
+window.addEventListener('error', (e) => {
+  console.error('Uncaught error:', e)
+  toast('Something went wrong. Try refreshing the page.', 'error')
+})
+
+// ── Sample images ─────────────────────────────────────────────
+async function loadSamples() {
+  try {
+    const res = await fetch('/samples/manifest.json')
+    if (!res.ok) return
+    const { samples } = await res.json()
+    const grid = qs('#samples-grid')
+    if (!grid) return
+
+    samples.forEach(sample => {
+      const thumb = createEl('div', {
+        class: 'sample-thumb',
+        'data-filename': sample.filename,
+        'aria-label': sample.label,
+        role: 'button',
+        tabindex: '0',
+        style: `background-image: url('/samples/${sample.filename}')`,
+      })
+      thumb.addEventListener('click', () => loadSampleFile(sample))
+      thumb.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); loadSampleFile(sample) }
+      })
+      grid.appendChild(thumb)
+    })
+  } catch {
+    // Samples are optional — silent failure
+  }
+}
+
+async function loadSampleFile(sample) {
+  showLoading('Loading sample...')
+  let file
+  try {
+    const res = await fetch(`/samples/${sample.filename}`)
+    if (!res.ok) throw new Error('Fetch failed')
+    const blob = await res.blob()
+    file = new File([blob], sample.filename, { type: blob.type || 'image/jpeg' })
+  } catch {
+    hideLoading()
+    toast('Could not load sample image.', 'error')
+    return
+  }
+  hideLoading()
+  await onFiles([file])
+}
 
 // ── Dosya kabul callback ──────────────────────────────────────
 async function onFiles(newFiles) {
@@ -53,7 +109,12 @@ async function addFile(file) {
       parsed = await parseFile(file)
     } catch (err) {
       parseError = true
-      toast('Could not parse metadata. File may be corrupted or use an unsupported variant.', 'error')
+      const msg = err?.message?.toLowerCase() ?? ''
+      if (msg.includes('invalid') || msg.includes('unsupported')) {
+        toast('Unsupported file format or corrupted image.', 'error')
+      } else {
+        toast('Parse error. File may be damaged.', 'error')
+      }
       console.error(err)
     }
 
@@ -74,6 +135,11 @@ async function addFile(file) {
       } else {
         toast(`Investigation open. ${parsed.fieldCount} metadata fields found.`, 'success')
       }
+    }
+
+    if (!parseError && parsed) {
+      saveToHistory({ filename: file.name, filesize: file.size, fieldCount: parsed.fieldCount })
+      renderHistoryStrip()
     }
 
   } catch (err) {
@@ -150,6 +216,7 @@ function closeFile(idx) {
     destroyMap()
     qs('#file-tabs').hidden = true
     qs('#investigation').hidden = true
+    qs('.preview-panel').hidden = true
     qs('#dropzone-section').hidden = false
     state.files = []
     state.activeIdx = 0
@@ -167,6 +234,7 @@ function renderInvestigation(idx) {
   const inv = qs('#investigation')
   inv.hidden = false
 
+  qs('.preview-panel').hidden = false
   renderPreview(file, objectUrl)
 
   if (!parsed) {
@@ -213,7 +281,7 @@ function renderInvestigation(idx) {
   const gps = getGPS(parsed)
   renderGPSPanel(gps, parsed)
   renderPrivacy(parsed)
-  initExportButtons(parsed, file)
+  initExportButtons(parsed, file, objectUrl)
   setCaseBadge(file.name, parsed.fieldCount)
 }
 
@@ -324,7 +392,7 @@ function createPrivacyFlag(label, type, detail) {
 }
 
 // ── Export butonları ──────────────────────────────────────────
-function initExportButtons(parsed, file) {
+function initExportButtons(parsed, file, objectUrl) {
   qs('#copy-json-btn').onclick = () => {
     navigator.clipboard.writeText(JSON.stringify(parsed.raw, null, 2))
       .then(() => toast('JSON copied to clipboard!', 'success'))
@@ -360,8 +428,25 @@ function initExportButtons(parsed, file) {
     toast('Report downloaded.', 'success')
   }
 
-  qs('#share-card-btn').onclick = () => {
-    toast('Share card coming in Day 5.', 'default')
+  qs('#share-card-btn').onclick = async () => {
+    const btn = qs('#share-card-btn')
+    btn.disabled = true
+    try {
+      showLoading('Generating share card...')
+      const blob = await generateShareCard(parsed, file, objectUrl)
+      const url = URL.createObjectURL(blob)
+      const filename = file.name.replace(/\.[^.]+$/, '') + '_tetkik-card.png'
+      const a = createEl('a', { href: url, download: filename })
+      a.click()
+      URL.revokeObjectURL(url)
+      toast('Share card saved.', 'success')
+    } catch (err) {
+      console.error('Share card error:', err)
+      toast('Share card generation failed. Try again.', 'error')
+    } finally {
+      hideLoading()
+      btn.disabled = false
+    }
   }
 
   const stripBtn = qs('#strip-btn')
@@ -410,17 +495,83 @@ function updateSectionBadge(labelId, count) {
   }
 }
 
+// ── History ───────────────────────────────────────────────────
+function renderHistoryStrip() {
+  const items = loadHistory()
+  const strip = qs('#history-strip')
+  const container = qs('#history-items')
+  if (!strip || !container) return
+
+  if (items.length === 0) {
+    strip.hidden = true
+    return
+  }
+
+  strip.hidden = false
+  container.innerHTML = ''
+  items.forEach(item => {
+    const el = createEl('div', { class: 'history-item', role: 'button', tabindex: '0' })
+    el.appendChild(createEl('span', { class: 'history-name' }, item.filename))
+    const handler = () => toast('Upload this file again to re-investigate. History shows past reports only.')
+    el.addEventListener('click', handler)
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handler() }
+    })
+    container.appendChild(el)
+  })
+}
+
 // ── Keyboard shortcuts ─────────────────────────────────────────
 function initKeyboardShortcuts() {
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !qs('#dropzone-section:not([hidden])')) {
-      resetToDropzone()
+    if (e.key === '?' && !e.ctrlKey && !e.metaKey && !isInputFocused()) {
+      e.preventDefault()
+      toggleShortcutsModal()
+      return
+    }
+    if (e.key === 'Escape') {
+      if (!qs('#shortcuts-modal[hidden]')) {
+        qs('#shortcuts-modal').hidden = true
+        return
+      }
+      if (!qs('#dropzone-section:not([hidden])')) {
+        resetToDropzone()
+      }
     }
     if ((e.ctrlKey || e.metaKey) && e.key === 'j') {
       e.preventDefault()
       qs('#copy-json-btn')?.click()
     }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault()
+      qs('#file-input')?.click()
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === ',') {
+      e.preventDefault()
+      clearHistory()
+      renderHistoryStrip()
+      toast('History cleared.', 'success')
+    }
   })
+}
+
+function isInputFocused() {
+  const el = document.activeElement
+  return el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
+}
+
+// ── Shortcuts modal ───────────────────────────────────────────
+function initShortcutsModal() {
+  const modal = qs('#shortcuts-modal')
+  if (!modal) return
+  qs('#shortcuts-overlay')?.addEventListener('click', () => { modal.hidden = true })
+  qs('#shortcuts-close')?.addEventListener('click', () => { modal.hidden = true })
+}
+
+function toggleShortcutsModal() {
+  const modal = qs('#shortcuts-modal')
+  if (!modal) return
+  modal.hidden = !modal.hidden
 }
 
 // Privacy tooltip dışına tıklanınca tüm tooltip'leri kapat
@@ -442,6 +593,7 @@ function resetToDropzone() {
   qs('#file-tabs').hidden = true
   qs('#file-tabs').innerHTML = ''
   qs('#investigation').hidden = true
+  qs('.preview-panel').hidden = true
   qs('#dropzone-section').hidden = false
   setCaseBadge()
 }
