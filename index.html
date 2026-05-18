@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EXIF Tetkik — Metadata Inspector</title>
+    <meta name="description" content="Upload a photo. Uncover every hidden detail. Strip what you don't want shared." />
+    <meta property="og:title" content="EXIF Tetkik — Metadata Inspector" />
+    <meta property="og:description" content="Upload a photo. Uncover every hidden detail." />
+    <meta property="og:type" content="website" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Geist+Mono:wght@300..700&family=Geist:wght@300..700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="toast-container" role="status" aria-live="polite" aria-atomic="true"></div>
+
+    <header class="site-header" role="banner">
+      <div class="header-inner">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">⬡</span>
+          <span class="brand-name">EXIF <em>Tetkik</em></span>
+        </div>
+        <span class="case-badge" id="case-badge" aria-hidden="true"></span>
+      </div>
+    </header>
+
+    <main id="app" role="main">
+      <section id="dropzone-section" class="dropzone-section" role="region" aria-label="File upload">
+        <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-label="Drop image here, click to browse, or paste from clipboard">
+          <div class="dropzone-inner">
+            <div class="dropzone-icon" aria-hidden="true">
+              <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="4" y="8" width="40" height="32" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                <circle cx="16" cy="18" r="3" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M4 32 L14 22 L22 30 L30 22 L44 34" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <p class="dropzone-headline">Drop an image to begin the investigation</p>
+            <p class="dropzone-sub">JPEG · PNG · WebP · HEIC · TIFF · up to 50MB</p>
+            <button class="btn btn-accent" id="browse-btn" type="button">Browse files</button>
+            <p class="dropzone-hint">or paste with <kbd>Ctrl+V</kbd></p>
+          </div>
+        </div>
+        <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/tiff,.heic,.heif,.tiff,.tif" multiple hidden aria-label="Choose image files" />
+        <div class="samples-row" id="samples-row" role="region" aria-label="Sample images">
+          <p class="samples-label">Try with a sample</p>
+          <div class="samples-grid" id="samples-grid"></div>
+        </div>
+      </section>
+
+      <div class="file-tabs" id="file-tabs" hidden role="tablist" aria-label="Open files"></div>
+
+      <div class="investigation" id="investigation" hidden>
+        <aside class="investigation-left" role="complementary" aria-label="Visual preview">
+          <div class="preview-panel" role="region" aria-label="Image preview">
+            <div class="preview-wrap">
+              <img id="preview-img" src="" alt="Uploaded image preview" />
+              <div id="preview-heic-notice" class="heic-notice" hidden role="alert">HEIC/HEIF — preview unavailable in browser. Metadata is readable.</div>
+            </div>
+            <div class="preview-meta" id="preview-meta"></div>
+          </div>
+
+          <div class="map-panel" role="region" aria-label="GPS location map">
+            <div class="panel-header">
+              <span class="panel-label">LOCATION</span>
+            </div>
+            <div id="map-container" class="map-container">
+              <div id="map"></div>
+              <div id="map-placeholder" class="map-placeholder">
+                <span class="map-placeholder-icon" aria-hidden="true">⊕</span>
+                <p>No GPS data in this image</p>
+              </div>
+            </div>
+            <div class="map-actions" id="map-actions" hidden>
+              <button class="btn btn-ghost btn-sm" id="copy-coords-btn" type="button" aria-label="Copy GPS coordinates to clipboard">Copy coordinates</button>
+              <a class="btn btn-ghost btn-sm" id="gmaps-link" href="#" target="_blank" rel="noopener noreferrer">Google Maps ↗</a>
+              <a class="btn btn-ghost btn-sm" id="amaps-link" href="#" target="_blank" rel="noopener noreferrer">Apple Maps ↗</a>
+            </div>
+          </div>
+        </aside>
+
+        <div class="investigation-right">
+          <div class="privacy-banner" id="privacy-banner" role="alert" aria-label="Privacy analysis">
+            <div class="privacy-flags" id="privacy-flags"></div>
+            <div class="privacy-actions">
+              <button class="btn btn-danger" id="strip-btn" type="button" aria-label="Download a copy of this image with all metadata removed">Download clean copy</button>
+            </div>
+          </div>
+
+          <div class="export-row" id="export-row" role="toolbar" aria-label="Export options">
+            <button class="btn btn-ghost btn-sm" id="copy-json-btn" type="button">Copy JSON</button>
+            <button class="btn btn-ghost btn-sm" id="download-txt-btn" type="button">Download report</button>
+            <button class="btn btn-ghost btn-sm" id="share-card-btn" type="button">Share card</button>
+          </div>
+
+          <article class="report" id="report" aria-label="EXIF metadata report">
+            <section class="report-section" role="region" aria-labelledby="label-camera">
+              <h2 class="section-label" id="label-camera">CAMERA &amp; LENS</h2>
+              <div class="section-body" id="body-camera"></div>
+            </section>
+            <section class="report-section" role="region" aria-labelledby="label-exposure">
+              <h2 class="section-label" id="label-exposure">EXPOSURE</h2>
+              <div class="section-body" id="body-exposure"></div>
+            </section>
+            <section class="report-section" role="region" aria-labelledby="label-datetime">
+              <h2 class="section-label" id="label-datetime">DATE &amp; TIME</h2>
+              <div class="section-body" id="body-datetime"></div>
+            </section>
+            <section class="report-section" role="region" aria-labelledby="label-location">
+              <h2 class="section-label" id="label-location">LOCATION</h2>
+              <div class="section-body" id="body-location"></div>
+            </section>
+            <section class="report-section" role="region" aria-labelledby="label-image">
+              <h2 class="section-label" id="label-image">IMAGE</h2>
+              <div class="section-body" id="body-image"></div>
+            </section>
+            <section class="report-section" role="region" aria-labelledby="label-software">
+              <h2 class="section-label" id="label-software">SOFTWARE</h2>
+              <div class="section-body" id="body-software"></div>
+            </section>
+            <section class="report-section" role="region" aria-labelledby="label-author">
+              <h2 class="section-label" id="label-author">AUTHOR &amp; COPYRIGHT</h2>
+              <div class="section-body" id="body-author"></div>
+            </section>
+            <section class="report-section report-section--raw" role="region" aria-labelledby="label-raw">
+              <button class="section-toggle" id="raw-toggle" type="button" aria-expanded="false" aria-controls="body-raw">
+                <h2 class="section-label" id="label-raw">RAW DUMP</h2>
+                <span class="toggle-icon" aria-hidden="true">▸</span>
+              </button>
+              <div class="section-body section-body--raw" id="body-raw" hidden>
+                <pre class="raw-json" id="raw-json" tabindex="0"></pre>
+              </div>
+            </section>
+          </article>
+        </div>
+      </div>
+
+      <div class="loading-overlay" id="loading-overlay" hidden role="status" aria-label="Processing image">
+        <div class="loading-inner">
+          <p class="loading-text" id="loading-text">Initializing investigation...</p>
+        </div>
+      </div>
+    </main>
+
+    <section class="history-strip" id="history-strip" role="region" aria-label="Recent investigations" hidden>
+      <div class="history-inner">
+        <span class="history-label">RECENT</span>
+        <div class="history-items" id="history-items"></div>
+      </div>
+    </section>
+
+    <footer class="site-footer" role="contentinfo">
+      <div class="footer-inner">
+        <p>All processing happens in your browser — no uploads, no tracking, no accounts.</p>
+        <p class="footer-links">
+          <a href="https://github.com/tahagenc/exif-tetkik" rel="noopener noreferrer">GitHub</a>
+          <span aria-hidden="true">·</span>
+          <a href="https://tahagenc.com" rel="noopener noreferrer">tahagenc.com</a>
+        </p>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
